@@ -1,6 +1,8 @@
 #!/bin/bash
 # Tested on Kubernetes 1.26, 1.27
 
+VERSION="v0.0.1"
+
 colorful() {
     local color_tag=$1 && shift
     local style_tag=$1 && shift
@@ -367,6 +369,9 @@ case $COMMAND in
     ;;
   watch)
     watch_cluster
+    ;;
+  version)
+    echo $VERSION
     ;;
   *)
     usage
