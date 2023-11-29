@@ -129,8 +129,8 @@ kubeadm_init() {
     | sed "s/10.244.0.0\/16/10.244.0.0\/$SUBNET/g" \
     | kubectl apply -f -
   elif [[ $CNI == "calico" ]]; then
-    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml
-    curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml \
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.4/manifests/tigera-operator.yaml
+    curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.26.4/manifests/custom-resources.yaml \
     | sed "s/192.168.0.0\/16/192.168.0.0\/$SUBNET/g" \
     | kubectl create -f -
   fi
