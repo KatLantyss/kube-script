@@ -49,6 +49,7 @@ usage(){
 
   printf "Options:\n"
   printf "  --cni [calico | flannel]       Specify the Container Network Interface (CNI) plugin (Calico as default)\n"
+  printf "  --ip                           Specify the CNI IP\n"
   printf "  --subnet [8/16/24/32]          Specify the CNI subnet (16 as default)\n"
   printf "  --gpu                          Configure for GPU environment (require nvidia-container-toolkit be installed)\n\n"
 
@@ -62,15 +63,19 @@ usage(){
 }
 
 watch_cluster(){
-  watch -n 0 -t -c "echo \"\e[1;36m********************************** Kubernetes Simple Monitor **********************************\e[0m\n\" && kubectl get pods -A && echo \"\n\e[1;31mPress Ctrl C to exit.\e[0m\n\""
+  watch -n 0 -t -c "echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" && kubectl get pods -A -o wide && echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
 }
 
 cni_address() {
+  if [[ $IP_ADDR == "0.0.0.0" ]]; then
     if [[ $CNI == "flannel" ]]; then
-      echo "10.244.0.0/$SUBNET"
+      IP_ADDR="10.244.0.0"
     elif [[ $CNI == "calico" ]]; then
-      echo "192.168.0.0/$SUBNET"
+      IP_ADDR="192.168.0.0"
     fi
+  fi
+
+  echo "$IP_ADDR/$SUBNET"
 }
 
 gpu_time_slice() {
@@ -129,12 +134,13 @@ kubeadm_init() {
   colorful cyan bold "* Install CNI"
   if [[ $CNI == "flannel" ]]; then
     curl -sL https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml \
-    | sed "s/10.244.0.0\/16/10.244.0.0\/$SUBNET/g" \
+    | sed "s|10.244.0.0/16|$(cni_address)|g" \
     | kubectl apply -f -
   elif [[ $CNI == "calico" ]]; then
-    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.4/manifests/tigera-operator.yaml
-    curl -sL https://raw.githubusercontent.com/projectcalico/calico/v3.26.4/manifests/custom-resources.yaml \
-    | sed "s/192.168.0.0\/16/192.168.0.0\/$SUBNET/g" \
+    local CALICO_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/projectcalico/calico/releases/latest" | jq -r '.tag_name')
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/tigera-operator.yaml
+    curl -sL https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/custom-resources.yaml \
+    | sed "s|192.168.0.0/16|$(cni_address)|g" \
     | kubectl create -f -
   fi
   echo ""
@@ -174,10 +180,11 @@ kubelet_restart() {
 ########## Parse argument ##########
 parse_argument() {
   CNI="calico"
+  IP_ADDR="0.0.0.0"
   SUBNET="16"
   NEED_GPU=false
 
-  ARGS=$(getopt -o "" -l cni:,subnet:,gpu -n "k8s" -- "$@")
+  ARGS=$(getopt -o "" -l cni:,subnet:,ip:,gpu -n "k8s" -- "$@")
   if [[ $? -ne 0 ]]; then usage; fi
   eval set -- "$ARGS"
 
@@ -188,14 +195,24 @@ parse_argument() {
           if [[ "$2" == "calico" || "$2" == "flannel" ]]; then
             CNI="${2#*=}"
           else
-            usage
+            colorful red bold "[ERROR] Invalid CNI: $2, Please select calico or flannel!"
+            exit 1
           fi
           shift 2;;
         --subnet)
           if [[ "$2" == "8" || "$2" == "16" || "$2" == "24" || "$2" == "32" ]]; then
             SUBNET=$2
           else
-            usage
+            colorful red bold "[ERROR] Invalid subnet: $2, Please select 8, 16, 24 or 32!"
+            exit 1
+          fi
+          shift 2;;
+        --ip)
+          if [[ $2 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            IP_ADDR=$2
+          else
+            colorful red bold "[ERROR] Invalid IP address: $2"
+            exit 1
           fi
           shift 2;;
         --gpu)
