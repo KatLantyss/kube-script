@@ -100,7 +100,10 @@ kubeadm_reset() {
   colorful red bold "* Kill Kubernetes Cluster" 
   echo "y" | sudo kubeadm reset
   echo ""
-  
+
+  colorful red bold "* Clean CRIO container"
+  sudo crictl rm --all
+  echo ""  
 
   colorful red bold "* Remove Kubernetes Config Files"
   sudo rm -rf ~/.kube
@@ -221,6 +224,7 @@ kube_reset() {
 
 kube_kill() {
   kubeadm_reset
+  containerd_restart
 }
 
 kube_init() {
