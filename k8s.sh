@@ -1,8 +1,6 @@
 #!/bin/bash
 # Tested on Kubernetes 1.26, 1.27
 
-VERSION="v0.0.1"
-
 colorful() {
     local color_tag=$1 && shift
     local style_tag=$1 && shift
@@ -35,7 +33,7 @@ colorful() {
 usage(){
   printf "Usage: k8s [options]\n"
   printf "Commands:\n"
-  printf "  prune                          Terminate the Kubernetes Cluster and clean environment\n"
+  printf "  purge                          Terminate the Kubernetes Cluster and clean environment\n"
   printf "  init                           Initialize a new Kubernetes Cluster\n"
   printf "  reset                          Reset and restart the Kubernetes Cluster\n\n"
 
@@ -197,61 +195,6 @@ kubelet_restart() {
 ####################################
 
 
-
-########## Parse argument ##########
-parse_argument() {
-  CNI="calico"
-  IP_ADDR="0.0.0.0"
-  SUBNET="16"
-  NEED_GPU=false
-
-  ARGS=$(getopt -o "" -l cni:,subnet:,ip:,gpu -n "k8s" -- "$@")
-  if [[ $? -ne 0 ]]; then usage; fi
-  eval set -- "$ARGS"
-
-  while [ $# -gt 0 ]
-    do
-      case $1 in
-        --cni)
-          if [[ "$2" == "calico" || "$2" == "flannel" ]]; then
-            CNI="${2#*=}"
-          else
-            colorful red bold "[ERROR] Invalid CNI: $2, Please select calico or flannel!"
-            exit 1
-          fi
-          shift 2;;
-        --subnet)
-          if [[ "$2" == "8" || "$2" == "16" || "$2" == "24" || "$2" == "32" ]]; then
-            SUBNET=$2
-          else
-            colorful red bold "[ERROR] Invalid subnet: $2, Please select 8, 16, 24 or 32!"
-            exit 1
-          fi
-          shift 2;;
-        --ip)
-          if [[ $2 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-            IP_ADDR=$2
-          else
-            colorful red bold "[ERROR] Invalid IP address: $2"
-            exit 1
-          fi
-          shift 2;;
-        --gpu)
-            if ! command -v nvidia-ctk &> /dev/null; then
-              colorful red bold "[ERROR] nvidia-ctk is not installed."
-              exit 1
-            fi
-          NEED_GPU=true
-          shift;;
-        --)
-          shift
-          break;;
-      esac
-  done
-  if [[ $# -ne 0 ]]; then usage; fi
-}
-####################################
-
 ############# Commands #############
 kube_reset() {
   parse_argument "$@"
@@ -264,7 +207,7 @@ kube_reset() {
   kubeadm_init
 }
 
-kube_prune() {
+kube_purge() {
   kubeadm_reset
   containerd_restart
 }
@@ -388,44 +331,112 @@ kube_list() {
 }
 ####################################
 
-############### Main ###############
-if [ $# -lt 1 ]; then usage; fi
 
-if ! command -v jq &> /dev/null; then
-    colorful yellow bold "jq is not installed. Installing jq..."
-    sudo apt-get install -y jq
-fi
+########## Parse argument ##########
+parse_argument() {
+  CNI="calico"
+  IP_ADDR="0.0.0.0"
+  SUBNET="16"
+  NEED_GPU=false
 
-COMMAND=$1
-shift
+  ARGS=$(getopt -o "" -l cni:,subnet:,ip:,gpu -n "k8s" -- "$@")
+  if [[ $? -ne 0 ]]; then usage; fi
+  eval set -- "$ARGS"
 
-case $COMMAND in
-  reset)
-    kube_reset "$@"
-    ;;
-  prune)
-    kube_prune
-    ;;
-  init)
-    kube_init "$@"
-    ;;
-  load)
-    kube_load "$@"
-    ;;
-  install | uninstall)
-    kube_manage "$@"
-    ;;
-  list)
-    kube_list
-    ;;
-  watch)
-    watch_cluster
-    ;;
-  version)
-    echo $VERSION
-    ;;
-  *)
-    usage
-    ;;
-esac
+  while [ $# -gt 0 ]
+    do
+      case $1 in
+        --cni)
+          if [[ "$2" == "calico" || "$2" == "flannel" ]]; then
+            CNI="${2#*=}"
+          else
+            colorful red bold "[ERROR] Invalid CNI: $2, Please select calico or flannel!"
+            exit 1
+          fi
+          shift 2;;
+        --subnet)
+          if [[ "$2" == "8" || "$2" == "16" || "$2" == "24" || "$2" == "32" ]]; then
+            SUBNET=$2
+          else
+            colorful red bold "[ERROR] Invalid subnet: $2, Please select 8, 16, 24 or 32!"
+            exit 1
+          fi
+          shift 2;;
+        --ip)
+          if [[ $2 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            IP_ADDR=$2
+          else
+            colorful red bold "[ERROR] Invalid IP address: $2"
+            exit 1
+          fi
+          shift 2;;
+        --gpu)
+            if ! command -v nvidia-ctk &> /dev/null; then
+              colorful red bold "[ERROR] nvidia-ctk is not installed."
+              exit 1
+            fi
+          NEED_GPU=true
+          shift;;
+        --)
+          shift
+          break;;
+      esac
+  done
+  if [[ $# -ne 0 ]]; then usage; fi
+}
 ####################################
+
+
+############### Main ###############
+main() {
+  if [ $# -lt 1 ]; then usage; fi
+
+  if ! command -v jq &> /dev/null; then
+      colorful yellow bold "jq is not installed. Installing jq..."
+      sudo apt-get install -y jq
+  fi
+
+  COMMAND=$1
+  shift
+
+  case $COMMAND in
+    reset)
+      kube_reset "$@"
+      ;;
+    purge)
+      kube_purge
+      ;;
+    init)
+      kube_init "$@"
+      ;;
+    load)
+      kube_load "$@"
+      ;;
+    install | uninstall)
+      if ! command -v helm &> /dev/null; then
+        colorful yellow bold "helm is not installed. Installing helm..."
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        sudo chmod 700 get_helm.sh
+        ./get_helm.sh
+        sudo rm ./get_helm.sh
+      fi
+      kube_manage "$@"
+      ;;
+    list)
+      kube_list
+      ;;
+    watch)
+      watch_cluster
+      ;;
+    version)
+      echo $VERSION
+      ;;
+    *)
+      usage
+      ;;
+  esac
+}
+####################################
+
+VERSION="v0.0.1"
+main $@
