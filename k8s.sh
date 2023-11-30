@@ -65,7 +65,7 @@ watch_cluster(){
     watch -n 0 -t -c "\
       echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" &&\
       echo \"\e[1;32m* Current Node\e[0m\" &&\
-      kubectl get node &&\
+      kubectl get node -o wide &&\
       echo \"\n\e[1;32m* Current Pod\e[0m\" &&\
       kubectl get pod -A -o wide &&\
       echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
@@ -73,7 +73,7 @@ watch_cluster(){
       watch -n 0 -t -c "\
       echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" &&\
       echo \"\e[1;32m* Current Node\e[0m\" &&\
-      kubectl get node &&\
+      kubectl get node -o wide &&\
       echo \"\n\e[1;32m* Current Pod\e[0m\" &&\
       kubectl get pod -A -o wide &&\
       echo \"\n\e[1;36m* Join Command\e[0m\"
