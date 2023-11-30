@@ -35,7 +35,7 @@ colorful() {
 usage(){
   printf "Usage: k8s [options]\n"
   printf "Commands:\n"
-  printf "  kill                           Terminate the Kubernetes Cluster\n"
+  printf "  prune                          Terminate the Kubernetes Cluster and clean environment\n"
   printf "  init                           Initialize a new Kubernetes Cluster\n"
   printf "  reset                          Reset and restart the Kubernetes Cluster\n\n"
 
@@ -239,7 +239,7 @@ kube_reset() {
   kubeadm_init
 }
 
-kube_kill() {
+kube_prune() {
   kubeadm_reset
   containerd_restart
 }
@@ -373,8 +373,8 @@ case $COMMAND in
   reset)
     kube_reset "$@"
     ;;
-  kill)
-    kube_kill
+  prune)
+    kube_prune
     ;;
   init)
     kube_init "$@"
