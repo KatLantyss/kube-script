@@ -137,7 +137,7 @@ kubeadm_init() {
     | sed "s|10.244.0.0/16|$(cni_address)|g" \
     | kubectl apply -f -
   elif [[ $CNI == "calico" ]]; then
-    local CALICO_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/projectcalico/calico/releases/latest" | jq -r '.tag_name')
+    local CALICO_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/projectcalico/calico/releases/latest" | jq -r '.tag_name') >2
     kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/tigera-operator.yaml
     curl -sL https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/custom-resources.yaml \
     | sed "s|192.168.0.0/16|$(cni_address)|g" \
@@ -216,6 +216,10 @@ parse_argument() {
           fi
           shift 2;;
         --gpu)
+            if ! command -v nvidia-ctk &> /dev/null; then
+              colorful red bold "[ERROR] nvidia-ctk is not installed."
+              exit 1
+            fi
           NEED_GPU=true
           shift;;
         --)
@@ -365,6 +369,11 @@ kube_list() {
 
 ############### Main ###############
 if [ $# -lt 1 ]; then usage; fi
+
+if ! command -v jq &> /dev/null; then
+    colorful yellow bold "jq is not installed. Installing jq..."
+    sudo apt-get install -y jq
+fi
 
 COMMAND=$1
 shift
