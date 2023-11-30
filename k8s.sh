@@ -63,7 +63,7 @@ usage(){
 }
 
 watch_cluster(){
-  watch -n 0 -t -c "echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" && kubectl get pods -A -o wide && echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
+  watch -n 0 -t -c "echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" && echo \"Current Node:\" && kubectl get node && echo \"\nCurrent Pod:\" && kubectl get pod -A -o wide && echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
 }
 
 cni_address() {
