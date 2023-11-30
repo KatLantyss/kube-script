@@ -63,7 +63,25 @@ usage(){
 }
 
 watch_cluster(){
-  watch -n 0 -t -c "echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" && echo \"Current Node:\" && kubectl get node && echo \"\nCurrent Pod:\" && kubectl get pod -A -o wide && echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
+  if [[ -z $1 ]]; then
+    watch -n 0 -t -c "\
+      echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" &&\
+      echo \"\e[1;32m* Current Node\e[0m\" &&\
+      kubectl get node &&\
+      echo \"\n\e[1;32m* Current Pod\e[0m\" &&\
+      kubectl get pod -A -o wide &&\
+      echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
+  else
+      watch -n 0 -t -c "\
+      echo \"\e[1;36mKubernetes Simple Monitor \e[0m\n\" &&\
+      echo \"\e[1;32m* Current Node\e[0m\" &&\
+      kubectl get node &&\
+      echo \"\n\e[1;32m* Current Pod\e[0m\" &&\
+      kubectl get pod -A -o wide &&\
+      echo \"\n\e[1;36m* Join Command\e[0m\"
+      echo \"\e[1;33m$1\e[0m\"
+      echo \"\n\e[1;31mPress Ctrl+C to exit.\e[0m\n\""
+  fi
 }
 
 cni_address() {
@@ -118,7 +136,8 @@ kubeadm_reset() {
 
 kubeadm_init() {
   colorful cyan bold "* Initialize Kubernetes Cluster"
-  sudo kubeadm init --pod-network-cidr=$(cni_address)
+  local init_log=$(sudo kubeadm init --pod-network-cidr=$(cni_address) 2>&1 | tee /dev/tty)
+  local join_command="sudo $(echo "$init_log" | grep -A 1 "kubeadm join" | sed -e 'N;s|\\\n\t||g')"
   echo ""
 
   colorful cyan bold "* Procress Kubernetes Config File"
@@ -137,7 +156,7 @@ kubeadm_init() {
     | sed "s|10.244.0.0/16|$(cni_address)|g" \
     | kubectl apply -f -
   elif [[ $CNI == "calico" ]]; then
-    local CALICO_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/projectcalico/calico/releases/latest" | jq -r '.tag_name') >2
+    local CALICO_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/projectcalico/calico/releases/latest" | jq -r '.tag_name')
     kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/tigera-operator.yaml
     curl -sL https://raw.githubusercontent.com/projectcalico/calico/$CALICO_LATEST_RELEASE/manifests/custom-resources.yaml \
     | sed "s|192.168.0.0/16|$(cni_address)|g" \
@@ -145,7 +164,9 @@ kubeadm_init() {
   fi
   echo ""
 
-  watch_cluster
+  watch_cluster "$join_command"
+
+  colorful yellow bold "* Join Command\n$join_command\n"
 }
 
 containerd_restart() { 
