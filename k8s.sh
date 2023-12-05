@@ -223,10 +223,8 @@ kube_init() {
 }
 
 kube_load() {
-  if [[ $# -eq 0 ]]; then docker images --format '{{.Repository}}:{{.Tag}}' && exit; fi
-
-  if [[ -z $(docker images --format  {{.Repository}}:{{.Tag}} | grep -w $1) ]]; then docker images --format '{{.Repository}}:{{.Tag}}' && exit; fi
-
+  if [[ -z $(docker images --format  {{.Repository}}:{{.Tag}} | grep -x "$1") ]]; then docker images --format '{{.Repository}}:{{.Tag}}' && exit; fi
+ 
   sudo crictl rmi --prune > /dev/null
 
   colorful cyan bold "* [Docker] Save image..."
