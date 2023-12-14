@@ -290,7 +290,7 @@ kube_manage() {
           fi
 
           if [[ ${1%:*} != ${1#*:} ]]; then
-            colorful yellow "Setting GPU time slice to ${1#*:}"
+            colorful yellow bold "Setting GPU time slice to ${1#*:}"
             gpu_time_slice ${1#*:}
 
             kubectl patch clusterpolicy/cluster-policy \
@@ -305,7 +305,8 @@ kube_manage() {
         k9s)
           if [[ $COMMAND == "install" ]]; then
             local K9S_LATEST_RELEASE=$(curl -s "https://api.github.com/repos/derailed/k9s/releases/latest" | jq -r '.tag_name')
-            curl -fsSL -o k9s_Linux_amd64.tar.gz https://github.com/derailed/k9s/releases/download/${K9S_LATEST_RELEASE}/k9s_Linux_amd64.tar.gz
+            colorful yellow bold "Latest K9s version: $K9S_LATEST_RELEASE"
+            curl -fSL -o k9s_Linux_amd64.tar.gz https://github.com/derailed/k9s/releases/download/${K9S_LATEST_RELEASE}/k9s_Linux_amd64.tar.gz
             sudo tar -xzvf k9s_Linux_amd64.tar.gz -C /usr/local/bin k9s && rm -f k9s_Linux_amd64.tar.gz
           elif [[ $COMMAND == "uninstall" ]]; then
             sudo rm -rf /usr/local/bin/k9s
